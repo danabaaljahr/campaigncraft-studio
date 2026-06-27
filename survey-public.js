@@ -33,19 +33,60 @@
     applyTheme(next);
   }));
   let survey,responsePackage;
-  try{survey=decode(new URLSearchParams(location.search).get('s')||'');}catch{}
-  if(!survey?.questions?.length){$('surveyInvalid').classList.remove('hidden');return;}
-  document.documentElement.lang=survey.language||'ar';
-  $('surveyFormCard').classList.remove('hidden');$('publicTitle').textContent=survey.title;$('publicDescription').textContent=survey.description||'نقدّر مشاركتك. يستغرق الاستبيان دقائق قليلة.';
-  $('publicQuestions').innerHTML=survey.questions.map((q,i)=>`<article class="public-question" data-id="${q.id}"><h3>${i+1}. ${safe(q.text)} ${q.required?'<em>*</em>':''}</h3>${renderInput(q)}</article>`).join('');
+
+  async function loadSurvey(){
+    const params=new URLSearchParams(location.search);
+    const surveyId=params.get('id');
+    const legacyPayload=params.get('s');
+
+    if(surveyId&&db&&isUuid(surveyId)){
+      const {data,error}=await db
+        .from('surveys')
+        .select('id,title,description,questions,is_published')
+        .eq('id',surveyId)
+        .eq('is_published',true)
+        .maybeSingle();
+      if(!error&&data){
+        survey={
+          id:data.id,
+          title:data.title,
+          description:data.description,
+          language:'ar',
+          questions:Array.isArray(data.questions)?data.questions:[]
+        };
+      }else if(error){
+        console.error('Could not load published survey:',error);
+      }
+    }
+
+    // Backward compatibility for links created before the clean-link update.
+    if(!survey&&legacyPayload){
+      try{survey=decode(legacyPayload);}catch(error){console.error('Invalid legacy survey link:',error);}
+    }
+
+    if(!survey?.questions?.length){
+      $('surveyInvalid').classList.remove('hidden');
+      return;
+    }
+
+    document.documentElement.lang=survey.language||'ar';
+    $('surveyFormCard').classList.remove('hidden');
+    $('publicTitle').textContent=survey.title;
+    $('publicDescription').textContent=survey.description||'نقدّر مشاركتك. يستغرق الاستبيان دقائق قليلة.';
+    $('publicQuestions').innerHTML=survey.questions.map((q,i)=>`<article class="public-question" data-id="${q.id}"><h3>${i+1}. ${safe(q.text)} ${q.required?'<em>*</em>':''}</h3>${renderInput(q)}</article>`).join('');
+    bindSurveyInteractions();
+    updateProgress();
+  }
   function renderInput(q){
     if(q.type==='text')return `<textarea name="${q.id}" ${q.required?'required':''} placeholder="اكتب إجابتك هنا"></textarea>`;
     if(q.type==='scale')return `<div class="scale-options">${['1','2','3','4','5'].map(v=>`<label><input type="radio" name="${q.id}" value="${v}" ${q.required?'required':''}><b>${v}</b></label>`).join('')}</div>`;
     const type=q.type==='multiple'?'checkbox':'radio';return `<div class="public-options">${q.options.map(o=>`<label class="public-option"><input type="${type}" name="${q.id}" value="${safe(o)}" ${q.required&&type==='radio'?'required':''}><span>${safe(o)}</span></label>`).join('')}</div>`;
   }
   function updateProgress(){const required=survey.questions.filter(q=>q.required),done=required.filter(q=>{const els=[...document.querySelectorAll(`[name="${CSS.escape(q.id)}"]`)];return els.some(e=>e.type==='radio'||e.type==='checkbox'?e.checked:e.value.trim());}).length;const pct=required.length?Math.round(done/required.length*100):100;$('progressText').textContent=`${pct}%`;$('progressBar').style.width=`${pct}%`;}
-  $('publicSurveyForm').addEventListener('input',updateProgress);$('publicSurveyForm').addEventListener('change',updateProgress);
-  $('publicSurveyForm').onsubmit=async e=>{
+  function bindSurveyInteractions(){
+    $('publicSurveyForm').addEventListener('input',updateProgress);
+    $('publicSurveyForm').addEventListener('change',updateProgress);
+    $('publicSurveyForm').onsubmit=async e=>{
     e.preventDefault();
     const submitButton=e.currentTarget.querySelector('[type="submit"]');
     const originalText=submitButton.textContent;
@@ -111,7 +152,8 @@
     $('surveyFormCard').classList.add('hidden');
     $('surveyThanks').classList.remove('hidden');
     window.scrollTo({top:0,behavior:'smooth'});
-  };
-  $('downloadResponse').onclick=()=>{if(!responsePackage)return;const blob=new Blob([JSON.stringify(responsePackage,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`campaigncraft-response-${survey.id}.json`;a.click();URL.revokeObjectURL(a.href);};
-  updateProgress();
+    };
+    $('downloadResponse').onclick=()=>{if(!responsePackage)return;const blob=new Blob([JSON.stringify(responsePackage,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`campaigncraft-response-${survey.id}.json`;a.click();URL.revokeObjectURL(a.href);};
+  }
+  loadSurvey();
 })();

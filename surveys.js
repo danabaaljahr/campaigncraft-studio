@@ -15,8 +15,32 @@ function startCampaignCraftAuthenticatedApp(){
   const read = (key, fallback=[]) => { try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; } };
   const write = (key, value) => localStorage.setItem(key, JSON.stringify(value));
   const toast = message => { const el=$('saveToast'); el.textContent=message; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),1900); };
-  const b64encode = obj => btoa(unescape(encodeURIComponent(JSON.stringify(obj)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-  const formUrl = survey => `${location.href.replace(/surveys\.html.*$/,'survey.html')}?s=${b64encode({id:survey.id,title:survey.title,description:survey.description,language:survey.language,questions:survey.questions})}`;
+  const formUrl = survey => `${location.href.replace(/surveys\.html.*$/,'survey.html')}?id=${encodeURIComponent(survey.id)}`;
+
+  async function copyTextSafely(text){
+    const value=String(text||'');
+    try{
+      if(navigator.clipboard && window.isSecureContext){
+        await navigator.clipboard.writeText(value);
+        return true;
+      }
+    }catch(error){
+      console.warn('Clipboard API failed, using fallback:',error);
+    }
+    const area=document.createElement('textarea');
+    area.value=value;
+    area.setAttribute('readonly','');
+    area.style.position='fixed';
+    area.style.inset='0 auto auto -9999px';
+    document.body.appendChild(area);
+    area.focus();
+    area.select();
+    area.setSelectionRange(0,area.value.length);
+    let copied=false;
+    try{copied=document.execCommand('copy');}catch(error){console.warn('Copy fallback failed:',error);}
+    area.remove();
+    return copied;
+  }
 
   const templates = {
     audience: [
@@ -218,7 +242,8 @@ function startCampaignCraftAuthenticatedApp(){
     return {id:currentId||uid('survey'),title:$('surveyTitle').value.trim()||'استبيان بدون عنوان',description:$('surveyDescription').value.trim(),campaignId:$('surveyCampaign').value,researchGoal:$('researchGoal').value,language:$('surveyLanguage').value,targetResponses:Number($('targetResponses').value)||30,questions:currentQuestions,responses:old?.responses||[],published:old?.published||false,appliedAt:old?.appliedAt||null,createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
   }
 
-  function saveCurrent(publish=false){
+  function saveCurrent(publish=false,options={}){
+    const {silent=false}=options;
     if(!currentQuestions.length){toast('أضيفي سؤالًا واحدًا على الأقل');return null;}
     const previousId=currentId;
     const record=draftFromFields();
@@ -232,7 +257,7 @@ function startCampaignCraftAuthenticatedApp(){
     if(i>=0)list[i]=record;else list.unshift(record);
     saveSurveys(list);
     updatePublish(record);
-    syncSurveyToDatabase(record).then(result=>{
+    record._syncPromise=syncSurveyToDatabase(record).then(result=>{
       if(result.ok){
         if(result.id && result.id!==record.id){
           record.id=result.id;
@@ -240,16 +265,25 @@ function startCampaignCraftAuthenticatedApp(){
           localStorage.setItem(CURRENT_KEY,currentId);
         }
         updatePublish(record);
-        toast(publish?'تم حفظ الاستبيان ونشره في قاعدة البيانات':'تم حفظ الاستبيان في قاعدة البيانات');
-      }else{
+        if(!silent)toast(publish?'تم حفظ الاستبيان ونشره في قاعدة البيانات':'تم حفظ الاستبيان في قاعدة البيانات');
+      }else if(!silent){
         const detail=result.error?.message||result.error?.code||'خطأ غير معروف';
         toast(`تعذر الحفظ في قاعدة البيانات: ${detail}`);
       }
+      return result;
     });
     return record;
   }
 
-  function updatePublish(s){ const url=formUrl(s); $('shareLink').value=url; renderQuality(s); renderAnalysis(s); }
+  function updatePublish(s){
+    const url=formUrl(s);
+    const field=$('shareLink');
+    field.value=url;
+    field.dir='ltr';
+    field.setAttribute('inputmode','url');
+    renderQuality(s);
+    renderAnalysis(s);
+  }
   function renderQuality(s){
     const checks=[
       [s.title.length>=8,'عنوان واضح ومحدد'],
@@ -392,9 +426,47 @@ function startCampaignCraftAuthenticatedApp(){
     if(e.target.closest('.add-option')){syncQuestionsFromDom();q.options.push(`خيار ${q.options.length+1}`);renderQuestions();}
     const rem=e.target.closest('[data-remove-option]');if(rem){syncQuestionsFromDom();q.options.splice(Number(rem.dataset.removeOption),1);renderQuestions();}
   });
-  $('copyShare').onclick=async()=>{const s=saveCurrent(true);if(!s)return;const result=await syncSurveyToDatabase(s);if(!result.ok){toast('تعذر نشر الاستبيان في قاعدة البيانات');return;}await navigator.clipboard.writeText(formUrl(s));toast('تم نشر الاستبيان ونسخ الرابط');};
-  $('openPreview').onclick=async()=>{const s=saveCurrent(true);if(!s)return;const result=await syncSurveyToDatabase(s);if(!result.ok){toast('تعذر نشر الاستبيان في قاعدة البيانات');return;}window.open(formUrl(s),'_blank');};
-  $('copyEmbed').onclick=async()=>{const s=saveCurrent(true);if(!s)return;const result=await syncSurveyToDatabase(s);if(!result.ok){toast('تعذر نشر الاستبيان في قاعدة البيانات');return;}const code=`<iframe src="${formUrl(s)}" width="100%" height="720" style="border:0;border-radius:20px"></iframe>`;await navigator.clipboard.writeText(code);toast('تم نسخ كود التضمين');};
+  $('copyShare').onclick=async()=>{
+    const button=$('copyShare');
+    button.disabled=true;
+    const s=saveCurrent(true,{silent:true});
+    if(!s){button.disabled=false;return;}
+    const result=await s._syncPromise;
+    if(!result.ok){toast('تعذر نشر الاستبيان في قاعدة البيانات');button.disabled=false;return;}
+    const url=formUrl(s);
+    updatePublish(s);
+    const copied=await copyTextSafely(url);
+    toast(copied?'تم نسخ رابط الاستبيان':'تعذر النسخ تلقائيًا — اضغطي مطولًا على الرابط وانسخيه');
+    button.disabled=false;
+  };
+  $('openPreview').onclick=async()=>{
+    const button=$('openPreview');
+    // Open immediately while the tap is still active so iPhone/Safari does not block it.
+    const previewWindow=window.open('about:blank','_blank');
+    button.disabled=true;
+    const s=saveCurrent(true,{silent:true});
+    if(!s){previewWindow?.close();button.disabled=false;return;}
+    const result=await s._syncPromise;
+    if(!result.ok){previewWindow?.close();toast('تعذر نشر الاستبيان في قاعدة البيانات');button.disabled=false;return;}
+    const url=formUrl(s);
+    updatePublish(s);
+    if(previewWindow){
+      previewWindow.location.replace(url);
+    }else{
+      window.location.href=url;
+    }
+    toast('تم فتح معاينة الاستبيان');
+    button.disabled=false;
+  };
+  $('copyEmbed').onclick=async()=>{
+    const s=saveCurrent(true,{silent:true});
+    if(!s)return;
+    const result=await s._syncPromise;
+    if(!result.ok){toast('تعذر نشر الاستبيان في قاعدة البيانات');return;}
+    const code=`<iframe src="${formUrl(s)}" width="100%" height="720" style="border:0;border-radius:20px"></iframe>`;
+    const copied=await copyTextSafely(code);
+    toast(copied?'تم نسخ كود التضمين':'تعذر نسخ كود التضمين تلقائيًا');
+  };
   $('downloadSurvey').onclick=()=>{const s=saveCurrent(true);if(!s)return;const blob=new Blob([JSON.stringify(s,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`survey-${s.id}.json`;a.click();URL.revokeObjectURL(a.href);};
   $('importResponses').onchange=async e=>{const s=saveCurrent();if(!s)return;let added=0;for(const file of e.target.files){try{const data=JSON.parse(await file.text());const arr=Array.isArray(data)?data:[data];for(const r of arr){if((r.surveyId===s.id||r.survey?.id===s.id)&&r.answers){s.responses.push({id:r.id||uid('response'),answers:r.answers,submittedAt:r.submittedAt||new Date().toISOString()});added++;}}}catch{}}
     const list=surveys(),i=list.findIndex(x=>x.id===s.id);list[i]=s;saveSurveys(list);renderAnalysis(s);toast(`تم استيراد ${added} إجابة`);e.target.value='';};
