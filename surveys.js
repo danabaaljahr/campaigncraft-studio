@@ -57,18 +57,76 @@ function startCampaignCraftAuthenticatedApp(){
 
   async function syncSurveyToDatabase(record){
     if(!db) return {ok:false,error:new Error('Supabase client is unavailable')};
-    const payload={
-      id:record.id,
+
+    // Always read the authenticated user from Supabase immediately before saving.
+    // This prevents a stale account value after switching accounts on the same device.
+    const {data:userData,error:userError}=await db.auth.getUser();
+    const authUser=userData?.user;
+    if(userError||!authUser){
+      const error=userError||new Error('No authenticated user session');
+      console.error('Supabase auth user unavailable:',error);
+      return {ok:false,error};
+    }
+
+    const makePayload=id=>({
+      id,
       title:record.title,
       description:record.description||'',
       campaign_id:record.campaignId||null,
       questions:record.questions||[],
-      owner_id:currentUser.id,
+      owner_id:authUser.id,
       is_published:Boolean(record.published)
-    };
-    const {error}=await db.from('surveys').upsert(payload,{onConflict:'id'});
-    if(error){console.error('Supabase survey upsert failed:',error);return {ok:false,error};}
-    return {ok:true};
+    });
+
+    let payload=makePayload(record.id);
+
+    // Insert new surveys and update only surveys already owned by this account.
+    // Avoid upsert because a UUID left locally by another account can collide with
+    // a row hidden by RLS and make every new publish fail.
+    const {data:ownedRow,error:lookupError}=await db
+      .from('surveys')
+      .select('id')
+      .eq('id',record.id)
+      .eq('owner_id',authUser.id)
+      .maybeSingle();
+
+    if(lookupError){
+      console.error('Supabase survey lookup failed:',lookupError);
+      return {ok:false,error:lookupError};
+    }
+
+    let result;
+    if(ownedRow){
+      result=await db
+        .from('surveys')
+        .update(payload)
+        .eq('id',record.id)
+        .eq('owner_id',authUser.id)
+        .select('id')
+        .single();
+    }else{
+      result=await db.from('surveys').insert(payload).select('id').single();
+
+      // If the local id already belongs to another account, generate a fresh UUID,
+      // update the local draft, and retry once.
+      if(result.error && (result.error.code==='23505'||/duplicate|unique/i.test(result.error.message||''))){
+        const oldId=record.id;
+        const freshId=crypto.randomUUID();
+        record.id=freshId;
+        currentId=freshId;
+        localStorage.setItem(CURRENT_KEY,freshId);
+        const localList=surveys().map(item=>item.id===oldId?{...item,id:freshId}:item);
+        saveSurveys(localList);
+        payload=makePayload(freshId);
+        result=await db.from('surveys').insert(payload).select('id').single();
+      }
+    }
+
+    if(result.error){
+      console.error('Supabase survey save failed:',result.error);
+      return {ok:false,error:result.error};
+    }
+    return {ok:true,id:result.data?.id||record.id};
   }
 
   async function deleteSurveyFromDatabase(id){
@@ -175,8 +233,18 @@ function startCampaignCraftAuthenticatedApp(){
     saveSurveys(list);
     updatePublish(record);
     syncSurveyToDatabase(record).then(result=>{
-      if(result.ok) toast(publish?'تم حفظ الاستبيان ونشره في قاعدة البيانات':'تم حفظ الاستبيان في قاعدة البيانات');
-      else toast('تم الحفظ محليًا، لكن تعذر الاتصال بقاعدة البيانات');
+      if(result.ok){
+        if(result.id && result.id!==record.id){
+          record.id=result.id;
+          currentId=result.id;
+          localStorage.setItem(CURRENT_KEY,currentId);
+        }
+        updatePublish(record);
+        toast(publish?'تم حفظ الاستبيان ونشره في قاعدة البيانات':'تم حفظ الاستبيان في قاعدة البيانات');
+      }else{
+        const detail=result.error?.message||result.error?.code||'خطأ غير معروف';
+        toast(`تعذر الحفظ في قاعدة البيانات: ${detail}`);
+      }
     });
     return record;
   }
