@@ -1,70 +1,85 @@
-# ربط الاستبيانات بقاعدة بيانات Supabase المجانية
+# CampaignCraft + Supabase
 
-> هذه الخطوات تجعل إجابات المشاركين تصل إلى قاعدة بيانات مركزية من أي جهاز بدل حفظها في متصفح المشارك فقط.
+تم ربط الموقع بالمشروع:
 
-## 1) إنشاء المشروع
-1. افتحي Supabase وأنشئي مشروعًا جديدًا على الخطة المجانية.
-2. من **Project Settings → API** انسخي `Project URL` و`anon publishable key`.
-3. لا تضعي `service_role key` داخل ملفات GitHub نهائيًا.
+- Project URL: `https://smiwlknedwrcxykohqsj.supabase.co`
+- المفتاح المستخدم: Publishable key فقط
 
-## 2) إنشاء جدول الإجابات
-نفذي هذا الكود في **SQL Editor**:
+> ملاحظة: الرابط الصحيح في كود Supabase هو رابط المشروع بدون `/rest/v1/`.
+
+## الجداول المطلوبة
 
 ```sql
-create table public.survey_responses (
+create table if not exists public.surveys (
+  id uuid primary key,
+  title text not null,
+  description text default '',
+  campaign_id text,
+  questions jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.survey_responses (
   id uuid primary key default gen_random_uuid(),
-  survey_id text not null,
+  survey_id uuid not null references public.surveys(id) on delete cascade,
   answers jsonb not null,
   submitted_at timestamptz not null default now()
 );
+```
 
+## RLS والسياسات
+
+```sql
+alter table public.surveys enable row level security;
 alter table public.survey_responses enable row level security;
 
-create policy "public can submit survey responses"
+-- إنشاء الاستبيان من لوحة CampaignCraft
+create policy "public can insert surveys"
+on public.surveys
+for insert
+to anon
+with check (true);
+
+-- تعديل الاستبيان عند إعادة الحفظ
+create policy "public can update surveys"
+on public.surveys
+for update
+to anon
+using (true)
+with check (true);
+
+-- السماح بقراءة بيانات الاستبيان عند الحاجة
+create policy "public can read surveys"
+on public.surveys
+for select
+to anon
+using (true);
+
+-- استقبال إجابات المشاركين
+create policy "public can submit responses"
 on public.survey_responses
 for insert
 to anon
 with check (true);
 ```
 
-هذه السياسة تسمح بالإرسال فقط، ولا تسمح للجمهور بقراءة الإجابات.
+## قراءة الإجابات داخل الموقع
 
-## 3) قراءة النتائج لصاحبة الموقع
-للحفاظ على خصوصية الإجابات، استخدمي تسجيل الدخول في Supabase Auth ثم أضيفي سياسة قراءة للمستخدم المسجل فقط:
+قراءة الإجابات العامة بدون تسجيل دخول قد تكشف بيانات المشاركين؛ لذلك الأفضل استخدام Supabase Auth لاحقًا. حاليًا تُحفظ الإجابات مركزيًا ويمكن لصاحبة المشروع رؤيتها من Table Editor.
+
+للاختبار المؤقت فقط يمكن إضافة سياسة قراءة عامة، ثم حذفها بعد الاختبار:
 
 ```sql
-create policy "authenticated owner can read responses"
+create policy "temporary public response read"
 on public.survey_responses
 for select
-to authenticated
+to anon
 using (true);
 ```
 
-لنسخة أقوى لاحقًا، أضيفي `owner_id` واربطي كل استبيان بحساب صاحبته بدل السماح لكل مستخدم مسجل بقراءة كل النتائج.
+وحذفها بعد الاختبار:
 
-## 4) الربط من JavaScript
-أضيفي مكتبة Supabase قبل ملف `survey-public.js`:
-
-```html
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  window.SUPABASE_URL = 'YOUR_PROJECT_URL';
-  window.SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
-</script>
+```sql
+drop policy if exists "temporary public response read" on public.survey_responses;
 ```
-
-ثم عند إرسال الاستبيان:
-
-```js
-const client = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
-const { error } = await client.from('survey_responses').insert({
-  survey_id: survey.id,
-  answers
-});
-if (error) throw error;
-```
-
-## مهم
-- `anon key` مصمم للاستخدام في المتصفح عندما تكون RLS مفعلة.
-- لا ترفعي `service_role key` إلى GitHub.
-- أضيفي إشعار موافقة وبيان خصوصية قبل جمع معلومات شخصية.

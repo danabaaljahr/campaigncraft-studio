@@ -1,6 +1,8 @@
 (() => {
   const $=id=>document.getElementById(id);
   const SURVEY_KEY='campaigncraft_surveys_v1';
+  const db=window.campaignCraftSupabase||null;
+  const isUuid=value=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value||''));
   const decode=s=>JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g,'+').replace(/_/g,'/').padEnd(Math.ceil(s.length/4)*4,'=')))));
   const safe=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const THEME_KEY='campaigncraft_theme_v1';
@@ -33,10 +35,72 @@
   }
   function updateProgress(){const required=survey.questions.filter(q=>q.required),done=required.filter(q=>{const els=[...document.querySelectorAll(`[name="${CSS.escape(q.id)}"]`)];return els.some(e=>e.type==='radio'||e.type==='checkbox'?e.checked:e.value.trim());}).length;const pct=required.length?Math.round(done/required.length*100):100;$('progressText').textContent=`${pct}%`;$('progressBar').style.width=`${pct}%`;}
   $('publicSurveyForm').addEventListener('input',updateProgress);$('publicSurveyForm').addEventListener('change',updateProgress);
-  $('publicSurveyForm').onsubmit=e=>{e.preventDefault();const answers={};for(const q of survey.questions){const els=[...document.querySelectorAll(`[name="${CSS.escape(q.id)}"]`)];if(q.type==='multiple')answers[q.id]=els.filter(x=>x.checked).map(x=>x.value);else{const chosen=els.find(x=>x.checked)||els[0];answers[q.id]=chosen?.type==='textarea'?chosen.value.trim():chosen?.value||'';}if(q.required&&(Array.isArray(answers[q.id])?!answers[q.id].length:!answers[q.id])){alert('يرجى الإجابة عن جميع الأسئلة المطلوبة.');return;}}
-    responsePackage={id:`response-${Date.now()}-${Math.random().toString(16).slice(2)}`,surveyId:survey.id,survey:{id:survey.id,title:survey.title},answers,submittedAt:new Date().toISOString()};
-    try{const list=JSON.parse(localStorage.getItem(SURVEY_KEY))||[],i=list.findIndex(s=>s.id===survey.id);if(i>=0){list[i].responses=list[i].responses||[];list[i].responses.push(responsePackage);list[i].updatedAt=new Date().toISOString();localStorage.setItem(SURVEY_KEY,JSON.stringify(list));}}catch{}
-    $('surveyFormCard').classList.add('hidden');$('surveyThanks').classList.remove('hidden');window.scrollTo({top:0,behavior:'smooth'});
+  $('publicSurveyForm').onsubmit=async e=>{
+    e.preventDefault();
+    const submitButton=e.currentTarget.querySelector('[type="submit"]');
+    const originalText=submitButton.textContent;
+    submitButton.disabled=true;
+    submitButton.textContent='جارٍ حفظ الإجابة...';
+    const answers={};
+    for(const q of survey.questions){
+      const els=[...document.querySelectorAll(`[name="${CSS.escape(q.id)}"]`)];
+      if(q.type==='multiple')answers[q.id]=els.filter(x=>x.checked).map(x=>x.value);
+      else{
+        const chosen=els.find(x=>x.checked)||els[0];
+        answers[q.id]=chosen?.type==='textarea'?chosen.value.trim():chosen?.value||'';
+      }
+      if(q.required&&(Array.isArray(answers[q.id])?!answers[q.id].length:!answers[q.id])){
+        alert('يرجى الإجابة عن جميع الأسئلة المطلوبة.');
+        submitButton.disabled=false;
+        submitButton.textContent=originalText;
+        return;
+      }
+    }
+
+    responsePackage={
+      id:crypto.randomUUID?crypto.randomUUID():`response-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      surveyId:survey.id,
+      survey:{id:survey.id,title:survey.title},
+      answers,
+      submittedAt:new Date().toISOString()
+    };
+
+    let savedToDatabase=false;
+    let databaseError=null;
+    if(db&&isUuid(survey.id)){
+      const {error}=await db.from('survey_responses').insert({
+        survey_id:survey.id,
+        answers
+      });
+      if(error) databaseError=error;
+      else savedToDatabase=true;
+    }else{
+      databaseError=new Error('الاستبيان قديم أو الاتصال بقاعدة البيانات غير متاح');
+    }
+
+    try{
+      const list=JSON.parse(localStorage.getItem(SURVEY_KEY))||[];
+      const i=list.findIndex(s=>s.id===survey.id);
+      if(i>=0){
+        list[i].responses=list[i].responses||[];
+        list[i].responses.push(responsePackage);
+        list[i].updatedAt=new Date().toISOString();
+        localStorage.setItem(SURVEY_KEY,JSON.stringify(list));
+      }
+    }catch{}
+
+    if(savedToDatabase){
+      $('thanksMessage').textContent='تم حفظ إجابتك بنجاح في قاعدة البيانات. شكرًا لوقتك ومشاركتك.';
+      $('downloadResponse').classList.add('hidden');
+    }else{
+      console.error('Supabase response insert failed:',databaseError);
+      $('thanksMessage').textContent='تعذر إرسال الإجابة إلى قاعدة البيانات. تم الاحتفاظ بنسخة احتياطية على هذا الجهاز، ويمكنك تنزيلها وإرسالها لصاحب الاستبيان.';
+      $('downloadResponse').classList.remove('hidden');
+    }
+
+    $('surveyFormCard').classList.add('hidden');
+    $('surveyThanks').classList.remove('hidden');
+    window.scrollTo({top:0,behavior:'smooth'});
   };
   $('downloadResponse').onclick=()=>{if(!responsePackage)return;const blob=new Blob([JSON.stringify(responsePackage,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`campaigncraft-response-${survey.id}.json`;a.click();URL.revokeObjectURL(a.href);};
   updateProgress();

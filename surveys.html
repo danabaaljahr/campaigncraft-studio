@@ -83,7 +83,7 @@
 
           <section class="survey-step" data-panel="publish">
             <div class="publish-card">
-              <span class="card-kicker">PUBLIC SURVEY LINK</span><h3>رابط المشاركة</h3><p>الرابط يفتح نسخة نظيفة للمشارك. على GitHub Pages يتم جمع الإجابات على الجهاز نفسه، ويمكن استيراد ملفات الإجابات من المشاركين. وللجمع المركزي من أجهزة مختلفة يمكن ربط Backend لاحقًا.</p>
+              <span class="card-kicker">PUBLIC SURVEY LINK</span><h3>رابط المشاركة</h3><p>الرابط يفتح نسخة نظيفة للمشارك، وتُحفظ الإجابات مباشرة في قاعدة بيانات Supabase المركزية من أي جهاز. يبقى تصدير JSON خيارًا احتياطيًا فقط.</p>
               <div class="share-row"><input id="shareLink" readonly><button id="copyShare" type="button">نسخ الرابط</button><button id="openPreview" type="button">معاينة</button></div>
               <div class="publish-actions"><button id="downloadSurvey" type="button">تصدير الاستبيان JSON</button><label class="import-label">استيراد إجابات<input id="importResponses" type="file" accept="application/json" multiple></label><button id="copyEmbed" type="button">نسخ كود التضمين</button></div>
             </div>
@@ -108,6 +108,8 @@
 
   <footer class="footer section-wrap"><p>CampaignCraft — Audience Research &amp; Survey Lab</p><p>Designed &amp; developed by <strong>Dana Baaljahr</strong></p></footer>
   <div id="saveToast" class="save-toast" role="status"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
   <script src="surveys.js"></script>
 </body>
 </html>

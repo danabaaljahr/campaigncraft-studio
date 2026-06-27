@@ -7,7 +7,9 @@
   let currentQuestions = [];
 
   const safe = s => String(s ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-  const uid = prefix => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const uid = prefix => (['survey','response'].includes(prefix) && crypto.randomUUID) ? crypto.randomUUID() : `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const isUuid = value => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value||''));
+  const db = window.campaignCraftSupabase || null;
   const read = (key, fallback=[]) => { try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; } };
   const write = (key, value) => localStorage.setItem(key, JSON.stringify(value));
   const toast = message => { const el=$('saveToast'); el.textContent=message; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),1900); };
@@ -49,6 +51,34 @@
   function surveys(){ return read(SURVEY_KEY, []); }
   function saveSurveys(items){ write(SURVEY_KEY, items); renderList(); }
   function selectedSurvey(){ return surveys().find(s=>s.id===currentId); }
+
+
+  async function syncSurveyToDatabase(record){
+    if(!db) return {ok:false,error:new Error('Supabase client is unavailable')};
+    const payload={
+      id:record.id,
+      title:record.title,
+      description:record.description||'',
+      campaign_id:record.campaignId||null,
+      questions:record.questions||[]
+    };
+    const {error}=await db.from('surveys').upsert(payload,{onConflict:'id'});
+    if(error){console.error('Supabase survey upsert failed:',error);return {ok:false,error};}
+    return {ok:true};
+  }
+
+  async function deleteSurveyFromDatabase(id){
+    if(!db||!isUuid(id)) return;
+    const {error}=await db.from('surveys').delete().eq('id',id);
+    if(error) console.error('Supabase survey delete failed:',error);
+  }
+
+  async function fetchResponsesFromDatabase(surveyId){
+    if(!db||!isUuid(surveyId)) return null;
+    const {data,error}=await db.from('survey_responses').select('id,survey_id,answers,submitted_at').eq('survey_id',surveyId).order('submitted_at',{ascending:true});
+    if(error){console.warn('Supabase response read unavailable:',error.message);return null;}
+    return (data||[]).map(row=>({id:row.id,answers:row.answers||{},submittedAt:row.submitted_at}));
+  }
 
   function fillCampaigns(){
     const list=campaigns();
@@ -107,8 +137,23 @@
 
   function saveCurrent(publish=false){
     if(!currentQuestions.length){toast('أضيفي سؤالًا واحدًا على الأقل');return null;}
-    const record=draftFromFields(); if(publish)record.published=true; currentId=record.id; localStorage.setItem(CURRENT_KEY,currentId);
-    const list=surveys(); const i=list.findIndex(s=>s.id===record.id); if(i>=0)list[i]=record;else list.unshift(record); saveSurveys(list); updatePublish(record); return record;
+    const previousId=currentId;
+    const record=draftFromFields();
+    if(!isUuid(record.id)) record.id=uid('survey');
+    if(publish)record.published=true;
+    currentId=record.id;
+    localStorage.setItem(CURRENT_KEY,currentId);
+    let list=surveys();
+    if(previousId && previousId!==record.id) list=list.filter(s=>s.id!==previousId);
+    const i=list.findIndex(s=>s.id===record.id);
+    if(i>=0)list[i]=record;else list.unshift(record);
+    saveSurveys(list);
+    updatePublish(record);
+    syncSurveyToDatabase(record).then(result=>{
+      if(result.ok) toast(publish?'تم حفظ الاستبيان ونشره في قاعدة البيانات':'تم حفظ الاستبيان في قاعدة البيانات');
+      else toast('تم الحفظ محليًا، لكن تعذر الاتصال بقاعدة البيانات');
+    });
+    return record;
   }
 
   function updatePublish(s){ const url=formUrl(s); $('shareLink').value=url; renderQuality(s); renderAnalysis(s); }
@@ -132,11 +177,18 @@
     document.querySelector('.builder-shell').scrollIntoView({behavior:'smooth',block:'start'});
   }
 
-  function openSurvey(id){
+  async function openSurvey(id){
     const s=surveys().find(x=>x.id===id); if(!s)return;
     currentId=s.id; localStorage.setItem(CURRENT_KEY,id); currentQuestions=(s.questions||[]).map(q=>({...q,options:[...(q.options||[])]}));
     $('surveyTitle').value=s.title||''; $('surveyDescription').value=s.description||''; $('surveyCampaign').value=s.campaignId||''; $('researchGoal').value=s.researchGoal||'audience'; $('surveyLanguage').value=s.language||'ar'; $('targetResponses').value=s.targetResponses||30;
     $('builderTitle').textContent=`إدارة: ${s.title}`; renderQuestions(); updatePublish(s); $('builder').classList.remove('hidden'); switchStep('setup');
+    const remoteResponses=await fetchResponsesFromDatabase(s.id);
+    if(remoteResponses){
+      s.responses=remoteResponses;
+      const list=surveys(),index=list.findIndex(x=>x.id===s.id);
+      if(index>=0){list[index]=s;saveSurveys(list);}
+      renderAnalysis(s);
+    }
   }
 
   function newSurvey(){
@@ -237,13 +289,13 @@
     if(e.target.closest('.add-option')){syncQuestionsFromDom();q.options.push(`خيار ${q.options.length+1}`);renderQuestions();}
     const rem=e.target.closest('[data-remove-option]');if(rem){syncQuestionsFromDom();q.options.splice(Number(rem.dataset.removeOption),1);renderQuestions();}
   });
-  $('copyShare').onclick=async()=>{const s=saveCurrent(true);if(!s)return;await navigator.clipboard.writeText(formUrl(s));toast('تم نسخ رابط الاستبيان');};
-  $('openPreview').onclick=()=>{const s=saveCurrent(true);if(s)window.open(formUrl(s),'_blank');};
-  $('copyEmbed').onclick=async()=>{const s=saveCurrent(true);if(!s)return;const code=`<iframe src="${formUrl(s)}" width="100%" height="720" style="border:0;border-radius:20px"></iframe>`;await navigator.clipboard.writeText(code);toast('تم نسخ كود التضمين');};
+  $('copyShare').onclick=async()=>{const s=saveCurrent(true);if(!s)return;const result=await syncSurveyToDatabase(s);if(!result.ok){toast('تعذر نشر الاستبيان في قاعدة البيانات');return;}await navigator.clipboard.writeText(formUrl(s));toast('تم نشر الاستبيان ونسخ الرابط');};
+  $('openPreview').onclick=async()=>{const s=saveCurrent(true);if(!s)return;const result=await syncSurveyToDatabase(s);if(!result.ok){toast('تعذر نشر الاستبيان في قاعدة البيانات');return;}window.open(formUrl(s),'_blank');};
+  $('copyEmbed').onclick=async()=>{const s=saveCurrent(true);if(!s)return;const result=await syncSurveyToDatabase(s);if(!result.ok){toast('تعذر نشر الاستبيان في قاعدة البيانات');return;}const code=`<iframe src="${formUrl(s)}" width="100%" height="720" style="border:0;border-radius:20px"></iframe>`;await navigator.clipboard.writeText(code);toast('تم نسخ كود التضمين');};
   $('downloadSurvey').onclick=()=>{const s=saveCurrent(true);if(!s)return;const blob=new Blob([JSON.stringify(s,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`survey-${s.id}.json`;a.click();URL.revokeObjectURL(a.href);};
   $('importResponses').onchange=async e=>{const s=saveCurrent();if(!s)return;let added=0;for(const file of e.target.files){try{const data=JSON.parse(await file.text());const arr=Array.isArray(data)?data:[data];for(const r of arr){if((r.surveyId===s.id||r.survey?.id===s.id)&&r.answers){s.responses.push({id:r.id||uid('response'),answers:r.answers,submittedAt:r.submittedAt||new Date().toISOString()});added++;}}}catch{}}
     const list=surveys(),i=list.findIndex(x=>x.id===s.id);list[i]=s;saveSurveys(list);renderAnalysis(s);toast(`تم استيراد ${added} إجابة`);e.target.value='';};
-  $('surveyList').onclick=async e=>{const edit=e.target.closest('[data-edit]'),share=e.target.closest('[data-share]'),del=e.target.closest('[data-delete]');if(edit)openSurvey(edit.dataset.edit);if(share){const s=surveys().find(x=>x.id===share.dataset.share);await navigator.clipboard.writeText(formUrl(s));toast('تم نسخ الرابط');}if(del){const s=surveys().find(x=>x.id===del.dataset.delete);if(confirm(`حذف «${s.title}»؟`)){saveSurveys(surveys().filter(x=>x.id!==s.id));toast('تم حذف الاستبيان');}}};
+  $('surveyList').onclick=async e=>{const edit=e.target.closest('[data-edit]'),share=e.target.closest('[data-share]'),del=e.target.closest('[data-delete]');if(edit)openSurvey(edit.dataset.edit);if(share){const s=surveys().find(x=>x.id===share.dataset.share);await navigator.clipboard.writeText(formUrl(s));toast('تم نسخ الرابط');}if(del){const s=surveys().find(x=>x.id===del.dataset.delete);if(confirm(`حذف «${s.title}»؟`)){saveSurveys(surveys().filter(x=>x.id!==s.id));deleteSurveyFromDatabase(s.id);toast('تم حذف الاستبيان');}}};
 
   fillCampaigns(); renderList();
   const saved=selectedSurvey(); if(saved) openSurvey(saved.id);

@@ -28,10 +28,12 @@
       <p class="privacy-note">لا يطلب هذا الاستبيان اسمك أو بريدك، وتُستخدم الإجابات لغرض تحسين الحملة فقط.</p>
     </section>
     <section id="surveyThanks" class="public-card public-thanks hidden">
-      <span class="thanks-icon">✓</span><h1>شكرًا لمشاركتك</h1><p>تم حفظ إجابتك على هذا الجهاز. يمكنك تنزيل ملف الإجابة وإرساله لصاحب الاستبيان إذا كان الرابط مستضافًا على GitHub Pages بدون قاعدة بيانات.</p>
-      <button id="downloadResponse" class="primary-btn" type="button">تنزيل ملف الإجابة</button>
+      <span class="thanks-icon">✓</span><h1>شكرًا لمشاركتك</h1><p id="thanksMessage">تم حفظ إجابتك بنجاح.</p>
+      <button id="downloadResponse" class="primary-btn hidden" type="button">تنزيل نسخة احتياطية من الإجابة</button>
     </section>
   </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
   <script src="survey-public.js"></script>
 </body>
 </html>
