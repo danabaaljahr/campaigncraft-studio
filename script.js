@@ -659,10 +659,32 @@ const observer=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.ta
     };
 
     prevBtn.addEventListener('click', () => goToPage(currentIndex - 1));
+    const findFirstInvalidPage = () => sections.findIndex(section => {
+      const requiredFields = [...section.querySelectorAll('[required]')];
+      return requiredFields.some(field => !isFieldFilled(field));
+    });
+
     nextBtn.addEventListener('click', () => {
       campaignSnapshot({ silent: true });
       if (currentIndex === sections.length - 1) {
-        generateButton?.click();
+        const invalidPage = findFirstInvalidPage();
+        if (invalidPage !== -1) {
+          goToPage(invalidPage);
+          setTimeout(() => {
+            const invalidField = sections[invalidPage].querySelector('[required]:invalid');
+            invalidField?.focus({ preventScroll: true });
+            invalidField?.reportValidity();
+          }, 380);
+          return;
+        }
+        if (typeof form.requestSubmit === 'function') form.requestSubmit(generateButton || undefined);
+        else generateButton?.click();
+        setTimeout(() => {
+          const results = $('results');
+          if (results && !results.classList.contains('hidden')) {
+            results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 220);
         return;
       }
       goToPage(currentIndex + 1);
