@@ -184,3 +184,5 @@
 /* Share actions: one primary share button + open survey */
 .share-action-grid{grid-template-columns:2fr 1fr}
 @media(max-width:680px){.share-action-grid{grid-template-columns:1fr}}
+
+.auth-close{position:absolute;top:14px;inset-inline-end:14px;width:38px;height:38px;border:1px solid var(--line);border-radius:12px;background:var(--surface2);color:var(--text);font-size:24px;cursor:pointer}.auth-card{position:relative}.guest-auth-button{width:100%;margin-top:12px;padding:13px;border:1px solid var(--line);border-radius:14px;background:transparent;color:var(--text);font-weight:800}.guest-login-button{height:42px;padding:0 16px;border:1px solid var(--accent);border-radius:12px;background:var(--surface2);color:var(--text);font-weight:800}
