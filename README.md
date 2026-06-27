@@ -95,3 +95,15 @@ GitHub Pages is static and does not provide a central response database. Respons
 - Audience motivations, objections and decision-maker analysis.
 - Competition, positioning, tracking, approval, compliance, team, assets and deliverables fields.
 - Performance analytics compare actual results against both rates and numeric targets.
+
+## Accounts and data ownership
+
+This version uses Supabase Auth with email/password accounts.
+
+- Each signed-in user sees only their own campaigns and surveys.
+- Campaigns sync to the `campaigns` table and retain a local per-account cache.
+- Survey responses remain public to submit, but only the survey owner can read them in the dashboard.
+- Public survey participants do not need an account.
+
+Run `SUPABASE_AUTH_MIGRATION.sql` once in the Supabase SQL Editor before testing accounts.
+Also add the GitHub Pages site URL under Supabase Authentication URL Configuration.

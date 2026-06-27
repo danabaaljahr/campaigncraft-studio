@@ -1,3 +1,4 @@
+function startCampaignCraftAuthenticatedApp(){
 const $ = id => document.getElementById(id);
 
 const data = {
@@ -389,9 +390,11 @@ const observer=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.ta
 
 /* Campaign persistence, project workspace, and recovery */
 (() => {
-  const STORAGE_KEY = 'campaigncraft_campaigns_v2';
-  const SESSION_KEY = 'campaigncraft_current_campaign_v2';
+  const STORAGE_KEY = window.CampaignCraftAuth.storageKey('campaigncraft_campaigns_v2');
+  const SESSION_KEY = window.CampaignCraftAuth.storageKey('campaigncraft_current_campaign_v2');
   const form = $('campaignForm');
+  const db = window.campaignCraftSupabase || null;
+  const currentUser = window.CampaignCraftAuth.getUser();
   const fieldIds = [...form.querySelectorAll('input[id], select[id], textarea[id]')]
     .map(el => el.id)
     .filter(id => !['importCampaigns'].includes(id));
@@ -405,6 +408,40 @@ const observer=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.ta
     catch { return []; }
   };
   const writeCampaigns = campaigns => localStorage.setItem(STORAGE_KEY, JSON.stringify(campaigns));
+  async function syncCampaignToDatabase(record){
+    if(!db||!currentUser||!record) return;
+    const payload={
+      id:record.id,
+      owner_id:currentUser.id,
+      name:record.name,
+      status:record.status,
+      data:record,
+      created_at:record.createdAt,
+      updated_at:record.updatedAt
+    };
+    const {error}=await db.from('campaigns').upsert(payload,{onConflict:'id'});
+    if(error) console.warn('Campaign cloud sync failed:',error.message);
+  }
+  async function deleteCampaignFromDatabase(id){
+    if(!db||!currentUser) return;
+    const {error}=await db.from('campaigns').delete().eq('id',id).eq('owner_id',currentUser.id);
+    if(error) console.warn('Campaign cloud delete failed:',error.message);
+  }
+  async function loadCampaignsFromDatabase(){
+    if(!db||!currentUser) return readCampaigns();
+    const {data,error}=await db.from('campaigns').select('id,data,updated_at').eq('owner_id',currentUser.id).order('updated_at',{ascending:false});
+    if(error){console.warn('Campaign cloud load failed:',error.message);return readCampaigns();}
+    const cloud=(data||[]).map(row=>({...row.data,id:row.id}));
+    const local=readCampaigns();
+    const merged=new Map(local.map(item=>[item.id,item]));
+    cloud.forEach(item=>{
+      const existing=merged.get(item.id);
+      if(!existing||new Date(item.updatedAt||0)>=new Date(existing.updatedAt||0)) merged.set(item.id,item);
+    });
+    const list=[...merged.values()].sort((a,b)=>new Date(b.updatedAt||0)-new Date(a.updatedAt||0));
+    writeCampaigns(list);
+    return list;
+  }
   const uid = () => `cc-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const safe = text => String(text ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const toast = message => {
@@ -439,6 +476,7 @@ const observer=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.ta
     };
     if (index >= 0) campaigns[index] = record; else campaigns.unshift(record);
     writeCampaigns(campaigns);
+    syncCampaignToDatabase(record);
     renderLibrary();
     if (!silent) toast('تم حفظ الحملة ✓');
     return record;
@@ -500,6 +538,7 @@ const observer=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.ta
     if (!campaign || !confirm(`حذف حملة «${campaign.name}»؟`)) return;
     const campaigns = readCampaigns().filter(c => c.id !== id);
     writeCampaigns(campaigns);
+    deleteCampaignFromDatabase(id);
     if (currentCampaignId === id) {
       currentCampaignId = '';
       localStorage.removeItem(SESSION_KEY);
@@ -515,6 +554,7 @@ const observer=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.ta
     const campaigns = readCampaigns();
     campaigns.unshift(copy);
     writeCampaigns(campaigns);
+    syncCampaignToDatabase(copy);
     renderLibrary();
     toast('تم إنشاء نسخة من الحملة');
   }
@@ -917,16 +957,22 @@ const observer=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.ta
 
   initResultsAccordion();
 
-  // Restore the most recently open campaign after refresh or reopening the page.
+  // Load only this signed-in user's cloud campaigns, then restore their latest open campaign.
   renderLibrary();
-  const saved = readCampaigns().find(c => c.id === currentCampaignId);
-  if (saved) {
-    setFormData(saved.formData);
-    $('campaignStatus').value = saved.status || 'draft';
-    if (saved.generated) {
-      generate();
-      setTimeout(() => restoreChecklist(saved.checklist), 0);
+  loadCampaignsFromDatabase().then(() => {
+    renderLibrary();
+    const saved = readCampaigns().find(c => c.id === currentCampaignId);
+    if (saved) {
+      setFormData(saved.formData);
+      $('campaignStatus').value = saved.status || 'draft';
+      if (saved.generated) {
+        generate();
+        setTimeout(() => restoreChecklist(saved.checklist), 0);
+      }
+      toast('تمت استعادة آخر حملة محفوظة في حسابك');
     }
-    toast('تمت استعادة آخر حملة تلقائيًا');
-  }
+  });
 })();
+
+}
+if(window.CampaignCraftAuth?.ready){startCampaignCraftAuthenticatedApp();}else{window.addEventListener('campaigncraft:auth-ready',startCampaignCraftAuthenticatedApp,{once:true});}

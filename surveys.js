@@ -1,8 +1,10 @@
+function startCampaignCraftAuthenticatedApp(){
 (() => {
   const $ = id => document.getElementById(id);
-  const SURVEY_KEY = 'campaigncraft_surveys_v1';
-  const CAMPAIGN_KEY = 'campaigncraft_campaigns_v2';
-  const CURRENT_KEY = 'campaigncraft_current_survey_v1';
+  const SURVEY_KEY = window.CampaignCraftAuth.storageKey('campaigncraft_surveys_v1');
+  const CAMPAIGN_KEY = window.CampaignCraftAuth.storageKey('campaigncraft_campaigns_v2');
+  const CURRENT_KEY = window.CampaignCraftAuth.storageKey('campaigncraft_current_survey_v1');
+  const currentUser = window.CampaignCraftAuth.getUser();
   let currentId = localStorage.getItem(CURRENT_KEY) || '';
   let currentQuestions = [];
 
@@ -60,7 +62,9 @@
       title:record.title,
       description:record.description||'',
       campaign_id:record.campaignId||null,
-      questions:record.questions||[]
+      questions:record.questions||[],
+      owner_id:currentUser.id,
+      is_published:Boolean(record.published)
     };
     const {error}=await db.from('surveys').upsert(payload,{onConflict:'id'});
     if(error){console.error('Supabase survey upsert failed:',error);return {ok:false,error};}
@@ -78,6 +82,27 @@
     const {data,error}=await db.from('survey_responses').select('id,survey_id,answers,submitted_at').eq('survey_id',surveyId).order('submitted_at',{ascending:true});
     if(error){console.warn('Supabase response read unavailable:',error.message);return null;}
     return (data||[]).map(row=>({id:row.id,answers:row.answers||{},submittedAt:row.submitted_at}));
+  }
+
+
+  async function loadOwnerSurveysFromDatabase(){
+    if(!db||!currentUser) return;
+    // One-time claim for legacy surveys created before accounts were added.
+    await db.from('surveys').update({owner_id:currentUser.id}).is('owner_id',null);
+    const {data,error}=await db.from('surveys').select('id,title,description,campaign_id,questions,is_published,created_at,updated_at').eq('owner_id',currentUser.id).order('updated_at',{ascending:false});
+    if(error){console.warn('Supabase owner survey load failed:',error.message);return;}
+    const localById=new Map(surveys().map(item=>[item.id,item]));
+    const merged=[];
+    for(const row of data||[]){
+      const local=localById.get(row.id)||{};
+      const responses=await fetchResponsesFromDatabase(row.id)||local.responses||[];
+      merged.push({
+        ...local,
+        id:row.id,title:row.title,description:row.description||'',campaignId:row.campaign_id||'',questions:row.questions||[],
+        published:Boolean(row.is_published),responses,createdAt:row.created_at,updatedAt:row.updated_at
+      });
+    }
+    saveSurveys(merged);
   }
 
   function fillCampaigns(){
@@ -298,5 +323,8 @@
   $('surveyList').onclick=async e=>{const edit=e.target.closest('[data-edit]'),share=e.target.closest('[data-share]'),del=e.target.closest('[data-delete]');if(edit)openSurvey(edit.dataset.edit);if(share){const s=surveys().find(x=>x.id===share.dataset.share);await navigator.clipboard.writeText(formUrl(s));toast('تم نسخ الرابط');}if(del){const s=surveys().find(x=>x.id===del.dataset.delete);if(confirm(`حذف «${s.title}»؟`)){saveSurveys(surveys().filter(x=>x.id!==s.id));deleteSurveyFromDatabase(s.id);toast('تم حذف الاستبيان');}}};
 
   fillCampaigns(); renderList();
-  const saved=selectedSurvey(); if(saved) openSurvey(saved.id);
+  loadOwnerSurveysFromDatabase().finally(()=>{const saved=selectedSurvey(); if(saved) openSurvey(saved.id);});
 })();
+
+}
+if(window.CampaignCraftAuth?.ready){startCampaignCraftAuthenticatedApp();}else{window.addEventListener('campaigncraft:auth-ready',startCampaignCraftAuthenticatedApp,{once:true});}
