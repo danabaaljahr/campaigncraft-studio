@@ -981,3 +981,24 @@ body{
 .auth-divider:before,.auth-divider:after{content:"";height:1px;flex:1;background:var(--line)}
 .remember-login{display:flex!important;grid-template-columns:auto 1fr!important;flex-direction:row!important;align-items:center!important;gap:9px!important;font-size:12px!important;color:var(--muted);cursor:pointer}
 .remember-login input{width:18px!important;height:18px!important;margin:0!important;padding:0!important;accent-color:var(--accent)}
+
+/* Full English layout polish */
+html[dir="ltr"] body{font-family:"Space Grotesk","IBM Plex Sans Arabic",sans-serif}
+html[dir="ltr"] .topbar,
+html[dir="ltr"] .builder,
+html[dir="ltr"] .form-grid,
+html[dir="ltr"] .output-card,
+html[dir="ltr"] .results-accordion,
+html[dir="ltr"] .auth-card,
+html[dir="ltr"] .survey-card,
+html[dir="ltr"] .public-card{text-align:left}
+html[dir="ltr"] .form-section-title,
+html[dir="ltr"] .target-group-head,
+html[dir="ltr"] .accordion-title-wrap,
+html[dir="ltr"] .card-head{direction:ltr}
+html[dir="ltr"] input,
+html[dir="ltr"] textarea,
+html[dir="ltr"] select{text-align:left;direction:ltr}
+html[dir="ltr"] .platform-options,
+html[dir="ltr"] .target-grid,
+html[dir="ltr"] .analytics-inputs{direction:ltr}
