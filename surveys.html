@@ -16,11 +16,39 @@
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark">CC</span><span>CampaignCraft</span></a>
     <nav><a href="index.html#campaigns">حملاتي</a><a href="index.html#planner">المخطط</a><a class="active-nav" href="surveys.html">الاستبيانات</a></nav>
-    <div class="theme-switcher" role="group" aria-label="اختيار المظهر">
-      <button type="button" class="theme-choice" data-theme-choice="dark" aria-pressed="false">⚫ داكن</button>
-      <button type="button" class="theme-choice" data-theme-choice="light" aria-pressed="false">⚪ فاتح</button>
+    <div class="theme-switcher" aria-label="اختيار المظهر">
+      <button type="button" class="theme-toggle-button" data-theme-toggle aria-pressed="false">
+        <span class="theme-toggle-icon" aria-hidden="true"></span>
+        <span class="theme-label-ar">المظهر</span>
+        <span class="theme-label-en">Theme</span>
+      </button>
     </div>
   </header>
+
+  <button class="mobile-menu-button" type="button" aria-label="فتح القائمة" aria-expanded="false" aria-controls="mobileSiteMenu">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="mobile-menu-overlay" data-mobile-menu-close></div>
+  <aside class="mobile-site-menu" id="mobileSiteMenu" aria-hidden="true">
+    <div class="mobile-menu-head">
+      <div class="mobile-menu-title"><span class="brand-mark">CC</span><div><strong>CampaignCraft</strong><small class="menu-ar">القائمة الرئيسية</small><small class="menu-en">Main menu</small></div></div>
+      <button class="mobile-menu-close" type="button" data-mobile-menu-close aria-label="إغلاق القائمة">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </button>
+    </div>
+    <div class="mobile-menu-content">
+      <section class="mobile-menu-section mobile-nav-slot">
+        <p class="mobile-menu-label"><span class="menu-ar">التنقل</span><span class="menu-en">Navigation</span></p>
+      </section>
+      <section class="mobile-menu-section mobile-preferences-slot">
+        <p class="mobile-menu-label"><span class="menu-ar">إعدادات العرض</span><span class="menu-en">Display settings</span></p>
+      </section>
+      <section class="mobile-menu-section mobile-account-slot">
+        <p class="mobile-menu-label"><span class="menu-ar">الحساب</span><span class="menu-en">Account</span></p>
+      </section>
+    </div>
+    <div class="mobile-menu-footer"><span class="menu-ar">منصة تخطيط الحملات الرقمية</span><span class="menu-en">Digital campaign planning platform</span></div>
+  </aside>
 
   <main class="research-main">
     <section class="research-hero section-wrap">
@@ -113,5 +141,6 @@
   <script src="i18n-v3.js?v=20260627-3"></script>
   <script src="auth.js"></script>
   <script src="surveys.js"></script>
+  <script src="mobile-menu.js"></script>
 </body>
 </html>

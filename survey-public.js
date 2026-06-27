@@ -15,12 +15,22 @@
       btn.classList.toggle('active',active);
       btn.setAttribute('aria-pressed',active?'true':'false');
     });
+    document.querySelectorAll('[data-theme-toggle]').forEach(btn=>{
+      btn.classList.toggle('is-light',isLight);
+      btn.setAttribute('aria-pressed',isLight?'true':'false');
+      btn.setAttribute('aria-label',isLight?'التبديل إلى الوضع الداكن':'التبديل إلى الوضع الفاتح');
+    });
   };
   applyTheme(localStorage.getItem(THEME_KEY)||'dark');
   document.querySelectorAll('[data-theme-choice]').forEach(btn=>btn.addEventListener('click',()=>{
     const theme=btn.dataset.themeChoice;
     localStorage.setItem(THEME_KEY,theme);
     applyTheme(theme);
+  }));
+  document.querySelectorAll('[data-theme-toggle]').forEach(btn=>btn.addEventListener('click',()=>{
+    const next=document.body.classList.contains('light')?'dark':'light';
+    localStorage.setItem(THEME_KEY,next);
+    applyTheme(next);
   }));
   let survey,responsePackage;
   try{survey=decode(new URLSearchParams(location.search).get('s')||'');}catch{}
