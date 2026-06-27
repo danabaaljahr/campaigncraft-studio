@@ -180,3 +180,7 @@
   .owner-answers-guide button{grid-column:1/-1;width:100%}
   .share-ready-card{align-items:flex-start}
 }
+
+/* Share actions: one primary share button + open survey */
+.share-action-grid{grid-template-columns:2fr 1fr}
+@media(max-width:680px){.share-action-grid{grid-template-columns:1fr}}
