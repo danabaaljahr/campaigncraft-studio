@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="مركز أبحاث الجمهور والاستبيانات في CampaignCraft لبناء الاستبيانات وتحليل الإجابات وتحديث استراتيجية الحملة.">
+  <title>CampaignCraft | مركز الاستبيانات</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="survey.css">
+</head>
+<body>
+  <div class="noise"></div>
+  <header class="topbar">
+    <a class="brand" href="index.html"><span class="brand-mark">CC</span><span>CampaignCraft</span></a>
+    <nav><a href="index.html#campaigns">حملاتي</a><a href="index.html#planner">المخطط</a><a class="active-nav" href="surveys.html">الاستبيانات</a></nav>
+    <div class="theme-switcher" role="group" aria-label="اختيار المظهر">
+      <button type="button" class="theme-choice" data-theme-choice="dark" aria-pressed="false">⚫ داكن</button>
+      <button type="button" class="theme-choice" data-theme-choice="light" aria-pressed="false">⚪ فاتح</button>
+    </div>
+  </header>
+
+  <main class="research-main">
+    <section class="research-hero section-wrap">
+      <div>
+        <p class="eyebrow">AUDIENCE RESEARCH HUB</p>
+        <h1>ابني قرار الحملة على<br><span>إجابات حقيقية</span></h1>
+        <p>أنشئي استبيانًا، شاركيه مع الجمهور، حلّلي النتائج، ثم طبّقي أهم الاستنتاجات مباشرة على بيانات الحملة وخطتها.</p>
+      </div>
+      <div class="research-hero-card">
+        <span>من السؤال إلى القرار</span>
+        <div class="research-flow"><b>01</b><i></i><b>02</b><i></i><b>03</b><i></i><b>04</b></div>
+        <div class="research-flow-labels"><span>بناء</span><span>نشر</span><span>تحليل</span><span>تطبيق</span></div>
+      </div>
+    </section>
+
+    <section class="section-wrap research-dashboard">
+      <div class="research-toolbar">
+        <div><p class="eyebrow">SURVEY WORKSPACE</p><h2>استبياناتي</h2><p>كل استبيان مرتبط بحملة، ويمكن تحويل نتائجه إلى تحديثات استراتيجية بضغطة واحدة.</p></div>
+        <button id="newSurvey" class="primary-btn" type="button">+ استبيان جديد</button>
+      </div>
+      <div class="research-stats">
+        <article><strong id="surveyCount">0</strong><span>استبيانات</span></article>
+        <article><strong id="responseCount">0</strong><span>إجابات</span></article>
+        <article><strong id="publishedCount">0</strong><span>منشورة</span></article>
+        <article><strong id="insightCount">0</strong><span>استنتاجات مطبقة</span></article>
+      </div>
+      <div id="surveyList" class="survey-list"></div>
+      <div id="surveyEmpty" class="empty-library"><b>ما عندك استبيانات حتى الآن</b><p>ابدئي بقالب جاهز أو أنشئي أسئلتك الخاصة لفهم الجمهور قبل إطلاق الحملة.</p></div>
+    </section>
+
+    <section id="builder" class="section-wrap survey-builder hidden">
+      <div class="section-heading compact-heading"><p class="eyebrow">SURVEY BUILDER</p><h2 id="builderTitle">إنشاء استبيان جديد</h2><p>اختاري الأسئلة التي ستؤثر فعليًا في الجمهور والرسالة والمنصة، وليس أسئلة عامة بلا فائدة.</p></div>
+      <div class="builder-shell">
+        <aside class="builder-side">
+          <button class="builder-tab active" data-step="setup"><span>01</span>الإعداد</button>
+          <button class="builder-tab" data-step="questions"><span>02</span>الأسئلة</button>
+          <button class="builder-tab" data-step="publish"><span>03</span>النشر</button>
+          <button class="builder-tab" data-step="analysis"><span>04</span>التحليل</button>
+        </aside>
+        <div class="builder-content">
+          <section class="survey-step active" data-panel="setup">
+            <div class="form-grid">
+              <label class="wide">عنوان الاستبيان<input id="surveyTitle" type="text" maxlength="90" placeholder="مثال: كيف يختار أولياء الأمور المحتوى المناسب لأطفالهم؟"></label>
+              <label class="wide">وصف مختصر<textarea id="surveyDescription" rows="3" maxlength="240" placeholder="اشرحي للمشارك الهدف والوقت المتوقع للإجابة."></textarea></label>
+              <label>ربط الاستبيان بحملة<select id="surveyCampaign"></select></label>
+              <label>هدف البحث<select id="researchGoal"><option value="audience">فهم الجمهور واحتياجاته</option><option value="message">اختبار الرسالة الرئيسية</option><option value="platform">اختيار المنصة والمحتوى</option><option value="behavior">فهم السلوك والعوائق</option><option value="concept">اختبار فكرة أو مفهوم</option><option value="satisfaction">قياس الرضا والانطباع</option></select></label>
+              <label>لغة الاستبيان<select id="surveyLanguage"><option value="ar">العربية</option><option value="en">الإنجليزية</option></select></label>
+              <label>الحد الأدنى المستهدف للإجابات<input id="targetResponses" type="number" min="5" max="10000" value="30"></label>
+            </div>
+            <div class="template-box"><div><h3>قوالب سريعة</h3><p>تضيف مجموعة أسئلة قابلة للتعديل حسب هدفك.</p></div><div class="template-actions"><button data-template="audience" type="button">فهم الجمهور</button><button data-template="behavior" type="button">السلوك والعوائق</button><button data-template="message" type="button">اختبار الرسالة</button><button data-template="platform" type="button">المنصة والمحتوى</button></div></div>
+            <div class="step-actions"><span></span><button data-next="questions" class="primary-btn" type="button">التالي: بناء الأسئلة ←</button></div>
+          </section>
+
+          <section class="survey-step" data-panel="questions">
+            <div class="question-toolbar"><div><h3>أسئلة الاستبيان</h3><p>اكتبي أسئلتك بنفسك، واختاري نوع كل سؤال وخياراته.</p></div><button id="addQuestion" type="button">+ إضافة سؤال جديد</button></div>
+            <div class="question-add-menu" id="questionMenu" aria-label="اختيار نوع السؤال"><span>إضافة مباشرة:</span><button data-type="single" type="button">اختيار واحد</button><button data-type="multiple" type="button">اختيارات متعددة</button><button data-type="scale" type="button">مقياس 1–5</button><button data-type="text" type="button">إجابة نصية</button></div>
+            <div id="questionList" class="question-list"></div>
+            <div class="step-actions"><button data-prev="setup" type="button">→ السابق</button><button data-next="publish" class="primary-btn" type="button">حفظ وتجهيز النشر ←</button></div>
+          </section>
+
+          <section class="survey-step" data-panel="publish">
+            <div class="publish-card">
+              <span class="card-kicker">PUBLIC SURVEY LINK</span><h3>رابط المشاركة</h3><p>الرابط يفتح نسخة نظيفة للمشارك. على GitHub Pages يتم جمع الإجابات على الجهاز نفسه، ويمكن استيراد ملفات الإجابات من المشاركين. وللجمع المركزي من أجهزة مختلفة يمكن ربط Backend لاحقًا.</p>
+              <div class="share-row"><input id="shareLink" readonly><button id="copyShare" type="button">نسخ الرابط</button><button id="openPreview" type="button">معاينة</button></div>
+              <div class="publish-actions"><button id="downloadSurvey" type="button">تصدير الاستبيان JSON</button><label class="import-label">استيراد إجابات<input id="importResponses" type="file" accept="application/json" multiple></label><button id="copyEmbed" type="button">نسخ كود التضمين</button></div>
+            </div>
+            <div class="quality-check"><h3>فحص جودة الاستبيان</h3><div id="qualityChecks"></div></div>
+            <div class="step-actions"><button data-prev="questions" type="button">→ السابق</button><button data-next="analysis" class="primary-btn" type="button">عرض التحليل ←</button></div>
+          </section>
+
+          <section class="survey-step" data-panel="analysis">
+            <div id="analysisEmpty" class="analytics-empty">لا توجد إجابات بعد. افتحي المعاينة وأرسلي إجابة تجريبية أو استوردي ملفات إجابات.</div>
+            <div id="surveyAnalysis" class="hidden">
+              <div class="analysis-summary-grid"><article><strong id="analysisResponses">0</strong><span>إجابة</span></article><article><strong id="completionRate">0%</strong><span>نسبة الإكمال</span></article><article><strong id="researchConfidence">منخفضة</strong><span>ثقة القراءة</span></article><article><strong id="topSegment">—</strong><span>الشريحة الأبرز</span></article></div>
+              <div id="insightCards" class="insight-cards"></div>
+              <div id="questionAnalysis" class="question-analysis"></div>
+              <article class="apply-insights-card"><div><span class="card-kicker">STRATEGY SYNC</span><h3>تحديث الحملة بناءً على الاستبيان</h3><p id="applySummary">سيتم اقتراح التغييرات المدعومة بالإجابات فقط، مع إبقاء باقي بيانات الحملة كما هي.</p></div><button id="applyInsights" class="primary-btn" type="button">تطبيق الاستنتاجات على الحملة</button></article>
+            </div>
+            <div class="step-actions"><button data-prev="publish" type="button">→ السابق</button><a class="primary-btn" href="index.html#campaigns">العودة إلى الحملات</a></div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer section-wrap"><p>CampaignCraft — Audience Research &amp; Survey Lab</p><p>Designed &amp; developed by <strong>Dana Baaljahr</strong></p></footer>
+  <div id="saveToast" class="save-toast" role="status"></div>
+  <script src="surveys.js"></script>
+</body>
+</html>
