@@ -684,18 +684,31 @@ const observer=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.ta
     };
 
     const openSection = (targetIndex, scrollIntoView = false, immediate = false) => {
+      const activeElement = document.activeElement;
+      if (activeElement && typeof activeElement.blur === 'function') activeElement.blur();
+
       sections.forEach((section, index) => setSectionState(section, index === targetIndex, immediate));
       updateCompletion();
       const active = sections[targetIndex];
+
       if (active && scrollIntoView) {
+        const title = active.querySelector('.form-section-title');
         const alignActiveSection = () => {
           const stickyHeader = document.querySelector('.topbar');
-          const headerOffset = (stickyHeader?.offsetHeight || 70) + 24;
-          const targetTop = active.getBoundingClientRect().top + window.scrollY - headerOffset;
+          const headerOffset = (stickyHeader?.offsetHeight || 70) + 18;
+          const anchor = title || active;
+          const targetTop = anchor.getBoundingClientRect().top + window.scrollY - headerOffset;
           window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+          if (title) title.focus({ preventScroll: true });
         };
-        requestAnimationFrame(() => requestAnimationFrame(alignActiveSection));
-        setTimeout(alignActiveSection, 430);
+
+        if (immediate) {
+          requestAnimationFrame(alignActiveSection);
+        } else {
+          // Wait until the previous section has fully collapsed and the new one has opened.
+          // Scrolling only once after the layout settles prevents landing in the middle of the questions.
+          setTimeout(alignActiveSection, 470);
+        }
       }
     };
 
