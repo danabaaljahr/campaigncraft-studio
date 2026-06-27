@@ -687,11 +687,14 @@ const observer=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.ta
       const activeElement = document.activeElement;
       if (activeElement && typeof activeElement.blur === 'function') activeElement.blur();
 
-      sections.forEach((section, index) => setSectionState(section, index === targetIndex, immediate));
-      updateCompletion();
       const active = sections[targetIndex];
+      if (!active) return;
 
-      if (active && scrollIntoView) {
+      // افتحي القسم المطلوب فقط، واتركي الأقسام السابقة مفتوحة حتى لا تتغير الصفحة فجأة.
+      if (!active.classList.contains('active')) setSectionState(active, true, immediate);
+      updateCompletion();
+
+      if (scrollIntoView) {
         const title = active.querySelector('.form-section-title');
         const alignActiveSection = () => {
           const stickyHeader = document.querySelector('.topbar');
@@ -702,13 +705,7 @@ const observer=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.ta
           if (title) title.focus({ preventScroll: true });
         };
 
-        if (immediate) {
-          requestAnimationFrame(alignActiveSection);
-        } else {
-          // Wait until the previous section has fully collapsed and the new one has opened.
-          // Scrolling only once after the layout settles prevents landing in the middle of the questions.
-          setTimeout(alignActiveSection, 470);
-        }
+        requestAnimationFrame(() => requestAnimationFrame(alignActiveSection));
       }
     };
 
@@ -722,8 +719,11 @@ const observer=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.ta
     form.addEventListener('input', updateCompletion);
     form.addEventListener('change', updateCompletion);
     updateCompletion();
-    openSection(0, false, true);
-    window.resetFormSections = () => openSection(0, false, true);
+    sections.forEach((section, index) => setSectionState(section, index === 0, true));
+    window.resetFormSections = () => {
+      sections.forEach((section, index) => setSectionState(section, index === 0, true));
+      updateCompletion();
+    };
   }
 
   function initResultsAccordion() {
