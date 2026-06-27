@@ -808,3 +808,55 @@ body{
   .form-section-nav{flex-direction:column}
   .section-nav-btn{width:100%}
 }
+
+
+/* Full-page form wizard */
+#campaignForm.builder{overflow:hidden!important}
+.form-wizard{display:grid;grid-template-rows:auto minmax(460px,68vh) auto;background:var(--surface)}
+.form-wizard-steps{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:18px 22px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--surface2) 72%,transparent)}
+.wizard-step{display:flex;align-items:center;gap:10px;min-width:0;padding:11px 12px;border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--muted);cursor:pointer;text-align:right;transition:.22s ease}
+.wizard-step span{width:31px;height:31px;flex:0 0 31px;display:grid;place-items:center;border-radius:10px;background:var(--surface2);color:var(--accent);font:700 10px "Space Grotesk"}
+.wizard-step small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:700}
+.wizard-step:hover{border-color:color-mix(in srgb,var(--accent) 35%,var(--line));color:var(--text)}
+.wizard-step.active{border-color:color-mix(in srgb,var(--accent) 48%,var(--line));background:color-mix(in srgb,var(--accent) 8%,var(--surface));color:var(--text);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 8%,transparent)}
+.wizard-step.complete span::after{content:"✓";position:absolute;transform:translate(12px,-12px);width:16px;height:16px;display:grid;place-items:center;border-radius:50%;background:var(--accent);color:#111;font-size:10px}
+.wizard-step span{position:relative}
+.form-wizard-stage{position:relative;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;padding:0;overscroll-behavior:contain;scroll-behavior:smooth}
+.wizard-page{min-height:100%;padding:34px 32px!important;border-bottom:0!important;background:transparent;transform:translateX(0);opacity:1}
+.wizard-page[hidden]{display:none!important}
+.wizard-page.page-exit-forward{animation:wizardExitForward .2s ease both}
+.wizard-page.page-exit-back{animation:wizardExitBack .2s ease both}
+.wizard-page.page-enter-forward{opacity:0;transform:translateX(-28px)}
+.wizard-page.page-enter-back{opacity:0;transform:translateX(28px)}
+.wizard-page.page-enter-active{opacity:1;transform:translateX(0);transition:opacity .32s ease,transform .32s cubic-bezier(.22,1,.36,1)}
+@keyframes wizardExitForward{to{opacity:0;transform:translateX(26px)}}
+@keyframes wizardExitBack{to{opacity:0;transform:translateX(-26px)}}
+.form-wizard-footer{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px;padding:15px 20px;border-top:1px solid var(--line);background:color-mix(in srgb,var(--surface2) 75%,transparent)}
+.wizard-arrow{display:flex;align-items:center;justify-content:center;gap:10px;width:max-content;min-width:150px;padding:12px 16px;border-radius:14px;border:1px solid var(--line);font-weight:800;cursor:pointer;transition:.2s ease}
+.wizard-arrow svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.wizard-prev{justify-self:start;background:var(--surface);color:var(--text)}
+.wizard-next{justify-self:end;background:linear-gradient(90deg,var(--accent),#e2ffa4);color:#111;border-color:transparent}
+.wizard-arrow:hover:not(:disabled){transform:translateY(-1px)}
+.wizard-arrow:disabled{opacity:.35;cursor:not-allowed}
+.wizard-page-label{display:flex;align-items:baseline;gap:6px;color:var(--muted);font-size:12px}
+.wizard-page-label strong{font:700 20px "Space Grotesk";color:var(--accent)}
+.wizard-original-generate{display:none!important}
+/* neutralize old accordion styles if present */
+.builder-accordion-section,.builder-accordion-section.active,.builder-accordion-section.collapsed{background:transparent!important}
+.form-section-toggle-head{cursor:default!important;padding-inline-end:0!important}
+.form-section-toggle-indicator,.form-section-nav,.section-nav-btn{display:none!important}
+.form-section-body{display:block!important;max-height:none!important;overflow:visible!important;opacity:1!important;margin-top:24px!important}
+@media(max-width:900px){
+  .form-wizard{grid-template-rows:auto minmax(500px,70vh) auto}
+  .form-wizard-steps{grid-template-columns:repeat(5,minmax(86px,1fr));overflow-x:auto}
+  .wizard-step{min-width:105px}
+  .wizard-step small{display:none}
+}
+@media(max-width:640px){
+  .form-wizard{grid-template-rows:auto minmax(520px,72vh) auto}
+  .wizard-page{padding:24px 18px!important}
+  .form-wizard-footer{grid-template-columns:1fr auto 1fr;padding:12px}
+  .wizard-arrow{min-width:0;padding:11px 13px}
+  .wizard-arrow span{display:none}
+  .wizard-page-label strong{font-size:18px}
+}

@@ -543,62 +543,63 @@ const observer=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.ta
 
   function initFormSequentialSections() {
     const sections = [...form.querySelectorAll(':scope > .form-section')];
+    const generateButton = form.querySelector('.generate-btn');
     if (!sections.length) return;
 
-    const titleToSection = new Map();
+    let currentIndex = 0;
+    let animating = false;
 
-    const syncBody = (body, expanded, immediate = false) => {
-      if (!body) return;
-      body.style.overflow = 'hidden';
-      body.style.transition = immediate ? 'none' : '';
-      if (expanded) {
-        body.hidden = false;
-        if (immediate) {
-          body.style.maxHeight = 'none';
-          body.style.opacity = '1';
-          requestAnimationFrame(() => { body.style.transition = ''; });
-          return;
-        }
-        body.style.maxHeight = '0px';
-        body.style.opacity = '0';
-        requestAnimationFrame(() => {
-          body.style.maxHeight = `${body.scrollHeight}px`;
-          body.style.opacity = '1';
-        });
-        const onExpandEnd = event => {
-          if (event.propertyName !== 'max-height') return;
-          body.style.maxHeight = 'none';
-          body.removeEventListener('transitionend', onExpandEnd);
-        };
-        body.addEventListener('transitionend', onExpandEnd);
-      } else {
-        if (immediate) {
-          body.style.maxHeight = '0px';
-          body.style.opacity = '0';
-          body.hidden = true;
-          requestAnimationFrame(() => { body.style.transition = ''; });
-          return;
-        }
-        body.hidden = false;
-        body.style.maxHeight = `${body.scrollHeight}px`;
-        body.style.opacity = '1';
-        requestAnimationFrame(() => {
-          body.style.maxHeight = '0px';
-          body.style.opacity = '0';
-        });
-        const onCollapseEnd = event => {
-          if (event.propertyName !== 'max-height') return;
-          body.hidden = true;
-          body.removeEventListener('transitionend', onCollapseEnd);
-        };
-        body.addEventListener('transitionend', onCollapseEnd);
-      }
-    };
+    const wizard = document.createElement('div');
+    wizard.className = 'form-wizard';
+
+    const steps = document.createElement('div');
+    steps.className = 'form-wizard-steps';
+    steps.setAttribute('aria-label', 'خطوات نموذج الحملة');
+
+    const stage = document.createElement('div');
+    stage.className = 'form-wizard-stage';
+
+    const footer = document.createElement('div');
+    footer.className = 'form-wizard-footer';
+
+    const prevBtn = document.createElement('button');
+    prevBtn.type = 'button';
+    prevBtn.className = 'wizard-arrow wizard-prev';
+    prevBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg><span>السابق</span>';
+
+    const pageLabel = document.createElement('div');
+    pageLabel.className = 'wizard-page-label';
+
+    const nextBtn = document.createElement('button');
+    nextBtn.type = 'button';
+    nextBtn.className = 'wizard-arrow wizard-next';
+    nextBtn.innerHTML = '<span>حفظ ومتابعة</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"></path></svg>';
+
+    footer.append(prevBtn, pageLabel, nextBtn);
+    wizard.append(steps, stage, footer);
+
+    form.insertBefore(wizard, sections[0]);
+    sections.forEach((section, index) => {
+      section.classList.add('wizard-page');
+      section.dataset.pageIndex = index;
+      section.hidden = index !== 0;
+      stage.appendChild(section);
+
+      const title = section.querySelector('.form-section-title');
+      const stepButton = document.createElement('button');
+      stepButton.type = 'button';
+      stepButton.className = 'wizard-step';
+      stepButton.dataset.stepIndex = index;
+      stepButton.innerHTML = `<span>${String(index + 1).padStart(2, '0')}</span><small>${title?.querySelector('h3')?.textContent || `القسم ${index + 1}`}</small>`;
+      stepButton.addEventListener('click', () => goToPage(index));
+      steps.appendChild(stepButton);
+    });
+
+    if (generateButton) generateButton.classList.add('wizard-original-generate');
 
     const isFieldFilled = field => {
       if (!field) return true;
       if (field.type === 'checkbox' || field.type === 'radio') return field.checked;
-      if (field.tagName === 'SELECT') return String(field.value || '').trim() !== '';
       return String(field.value || '').trim() !== '';
     };
 
@@ -608,121 +609,79 @@ const observer=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting&&e.ta
       return requiredFields.every(isFieldFilled);
     };
 
-    const updateCompletion = () => {
-      sections.forEach(section => section.classList.toggle('is-complete', isSectionComplete(section)));
+    const updateUI = () => {
+      const stepButtons = [...steps.querySelectorAll('.wizard-step')];
+      stepButtons.forEach((button, index) => {
+        button.classList.toggle('active', index === currentIndex);
+        button.classList.toggle('complete', isSectionComplete(sections[index]));
+        button.setAttribute('aria-current', index === currentIndex ? 'step' : 'false');
+      });
+      prevBtn.disabled = currentIndex === 0;
+      nextBtn.querySelector('span').textContent = currentIndex === sections.length - 1 ? 'إنشاء الخطة' : 'حفظ ومتابعة';
+      pageLabel.innerHTML = `<strong>${currentIndex + 1}</strong><span>من ${sections.length}</span>`;
     };
 
-    sections.forEach((section, index) => {
-      section.classList.add('builder-accordion-section');
-      section.dataset.sectionIndex = index;
-      const title = section.querySelector('.form-section-title');
-      if (!title) return;
-      title.classList.add('form-section-toggle-head');
-      title.tabIndex = 0;
-      title.setAttribute('role', 'button');
-      title.setAttribute('aria-controls', `builderSectionBody${index + 1}`);
-      title.setAttribute('aria-expanded', index === 0 ? 'true' : 'false');
+    const animatePage = (fromSection, toSection, direction) => {
+      if (!toSection || animating) return;
+      animating = true;
+      const outClass = direction > 0 ? 'page-exit-forward' : 'page-exit-back';
+      const inClass = direction > 0 ? 'page-enter-forward' : 'page-enter-back';
 
-      const toggleIndicator = document.createElement('span');
-      toggleIndicator.className = 'form-section-toggle-indicator';
-      toggleIndicator.setAttribute('aria-hidden', 'true');
-      toggleIndicator.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg>';
-      title.appendChild(toggleIndicator);
-
-      const body = document.createElement('div');
-      body.className = 'form-section-body';
-      body.id = `builderSectionBody${index + 1}`;
-      const moveNodes = [...section.children].slice(1);
-      moveNodes.forEach(node => body.appendChild(node));
-
-      const nav = document.createElement('div');
-      nav.className = 'form-section-nav';
-      const prevBtn = document.createElement('button');
-      prevBtn.type = 'button';
-      prevBtn.className = 'section-nav-btn secondary';
-      prevBtn.textContent = 'القسم السابق';
-      prevBtn.disabled = index === 0;
-
-      const nextBtn = document.createElement('button');
-      nextBtn.type = 'button';
-      nextBtn.className = 'section-nav-btn primary';
-      nextBtn.textContent = index === sections.length - 1 ? 'حفظ والانتقال إلى إنشاء الخطة' : 'حفظ ومتابعة';
-
-      nav.append(prevBtn, nextBtn);
-      body.appendChild(nav);
-      section.appendChild(body);
-      if (index !== 0) body.hidden = true;
-
-      titleToSection.set(title, section);
-
-      title.addEventListener('click', () => openSection(index));
-      title.addEventListener('keydown', event => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          openSection(index);
+      fromSection?.classList.add(outClass);
+      setTimeout(() => {
+        if (fromSection) {
+          fromSection.hidden = true;
+          fromSection.classList.remove(outClass);
         }
-      });
-      prevBtn.addEventListener('click', () => openSection(Math.max(0, index - 1), true));
-      nextBtn.addEventListener('click', () => {
-        campaignSnapshot({ silent: true });
-        if (index === sections.length - 1) {
-          const generateButton = document.querySelector('.generate-btn');
-          generateButton?.focus({ preventScroll: true });
-          return;
-        }
-        openSection(index + 1, true);
-      });
-    });
-
-    const setSectionState = (section, expanded, immediate = false) => {
-      const title = section.querySelector('.form-section-title');
-      const body = section.querySelector('.form-section-body');
-      section.classList.toggle('active', expanded);
-      section.classList.toggle('collapsed', !expanded);
-      if (title) title.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-      syncBody(body, expanded, immediate);
+        toSection.hidden = false;
+        toSection.classList.add(inClass);
+        stage.scrollTop = 0;
+        requestAnimationFrame(() => {
+          toSection.classList.add('page-enter-active');
+        });
+        setTimeout(() => {
+          toSection.classList.remove(inClass, 'page-enter-active');
+          animating = false;
+          const firstField = toSection.querySelector('input:not([type="hidden"]), select, textarea');
+          firstField?.focus({ preventScroll: true });
+        }, 340);
+      }, 190);
     };
 
-    const openSection = (targetIndex, scrollIntoView = false, immediate = false) => {
-      const activeElement = document.activeElement;
-      if (activeElement && typeof activeElement.blur === 'function') activeElement.blur();
+    const goToPage = targetIndex => {
+      if (targetIndex < 0 || targetIndex >= sections.length || targetIndex === currentIndex || animating) return;
+      const oldIndex = currentIndex;
+      const oldSection = sections[oldIndex];
+      const newSection = sections[targetIndex];
+      currentIndex = targetIndex;
+      animatePage(oldSection, newSection, targetIndex > oldIndex ? 1 : -1);
+      updateUI();
+    };
 
-      const active = sections[targetIndex];
-      if (!active) return;
-
-      // افتحي القسم المطلوب فقط، واتركي الأقسام السابقة مفتوحة حتى لا تتغير الصفحة فجأة.
-      if (!active.classList.contains('active')) setSectionState(active, true, immediate);
-      updateCompletion();
-
-      if (scrollIntoView) {
-        const title = active.querySelector('.form-section-title');
-        const alignActiveSection = () => {
-          const stickyHeader = document.querySelector('.topbar');
-          const headerOffset = (stickyHeader?.offsetHeight || 70) + 18;
-          const anchor = title || active;
-          const targetTop = anchor.getBoundingClientRect().top + window.scrollY - headerOffset;
-          window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
-          if (title) title.focus({ preventScroll: true });
-        };
-
-        requestAnimationFrame(() => requestAnimationFrame(alignActiveSection));
+    prevBtn.addEventListener('click', () => goToPage(currentIndex - 1));
+    nextBtn.addEventListener('click', () => {
+      campaignSnapshot({ silent: true });
+      if (currentIndex === sections.length - 1) {
+        generateButton?.click();
+        return;
       }
-    };
-
-    form.addEventListener('focusin', event => {
-      const hostSection = event.target.closest('.form-section');
-      if (!hostSection) return;
-      const hostIndex = Number(hostSection.dataset.sectionIndex || 0);
-      if (!hostSection.classList.contains('active')) openSection(hostIndex, false);
+      goToPage(currentIndex + 1);
     });
 
-    form.addEventListener('input', updateCompletion);
-    form.addEventListener('change', updateCompletion);
-    updateCompletion();
-    sections.forEach((section, index) => setSectionState(section, index === 0, true));
+    form.addEventListener('input', updateUI);
+    form.addEventListener('change', updateUI);
+
+    updateUI();
+    stage.scrollTop = 0;
+
     window.resetFormSections = () => {
-      sections.forEach((section, index) => setSectionState(section, index === 0, true));
-      updateCompletion();
+      sections.forEach((section, index) => {
+        section.hidden = index !== 0;
+        section.classList.remove('page-exit-forward','page-exit-back','page-enter-forward','page-enter-back','page-enter-active');
+      });
+      currentIndex = 0;
+      stage.scrollTop = 0;
+      updateUI();
     };
   }
 
