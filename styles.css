@@ -1002,3 +1002,115 @@ html[dir="ltr"] select{text-align:left;direction:ltr}
 html[dir="ltr"] .platform-options,
 html[dir="ltr"] .target-grid,
 html[dir="ltr"] .analytics-inputs{direction:ltr}
+
+/* ===== Compact mobile header controls + theme switch ===== */
+@media(max-width:680px){
+  .topbar{
+    width:calc(100% - 24px)!important;
+    min-height:auto!important;
+    padding:10px!important;
+    gap:8px!important;
+    display:grid!important;
+    grid-template-columns:auto 1fr!important;
+    align-items:center!important;
+    border-radius:20px!important;
+  }
+  .topbar .brand{
+    grid-column:1!important;
+    grid-row:1!important;
+    gap:8px!important;
+    min-width:0!important;
+  }
+  .topbar .brand-mark{
+    width:42px!important;
+    height:42px!important;
+    border-radius:13px!important;
+    font-size:14px!important;
+  }
+  .topbar .brand>span:last-child{
+    display:none!important;
+  }
+  .topbar .account-controls{
+    grid-column:2!important;
+    grid-row:1!important;
+    order:initial!important;
+    width:auto!important;
+    justify-self:end!important;
+    display:flex!important;
+    gap:6px!important;
+    min-width:0!important;
+  }
+  .topbar .account-controls select{
+    flex:0 1 auto!important;
+    width:auto!important;
+    max-width:112px!important;
+    height:40px!important;
+    padding:0 30px 0 10px!important;
+    border-radius:12px!important;
+    font-size:12px!important;
+  }
+  html[dir="rtl"] .topbar .account-controls select{
+    padding:0 10px 0 30px!important;
+  }
+  .topbar .account-button{
+    flex:0 0 auto!important;
+    width:42px!important;
+    height:40px!important;
+    padding:4px!important;
+    justify-content:center!important;
+    border-radius:12px!important;
+  }
+  .topbar .account-avatar{
+    width:31px!important;
+    height:31px!important;
+    border-radius:10px!important;
+    font-size:13px!important;
+  }
+  .topbar .account-name{display:none!important}
+  .topbar .theme-switcher{
+    grid-column:1 / -1!important;
+    grid-row:2!important;
+    width:auto!important;
+    justify-self:stretch!important;
+    margin:0!important;
+    padding:4px!important;
+    gap:4px!important;
+    border-radius:13px!important;
+    display:grid!important;
+    grid-template-columns:1fr 1fr!important;
+  }
+  .topbar .theme-choice{
+    min-height:38px!important;
+    padding:7px 10px!important;
+    border-radius:10px!important;
+    font-size:12px!important;
+    line-height:1!important;
+    white-space:nowrap!important;
+  }
+  .topbar nav{
+    grid-column:1 / -1!important;
+    grid-row:3!important;
+    order:initial!important;
+    width:100%!important;
+    margin:0!important;
+    padding:2px 0 0!important;
+    gap:4px!important;
+    flex-wrap:nowrap!important;
+    overflow-x:auto!important;
+    scrollbar-width:none!important;
+  }
+  .topbar nav::-webkit-scrollbar{display:none!important}
+  .topbar nav a{
+    flex:0 0 auto!important;
+    padding:8px 10px!important;
+    border-radius:9px!important;
+    font-size:11px!important;
+  }
+}
+
+/* Extra-tight controls for small phones */
+@media(max-width:430px){
+  .topbar{padding:8px!important}
+  .topbar .theme-choice{min-height:36px!important;font-size:11px!important}
+  .topbar .account-controls select{max-width:104px!important}
+}
