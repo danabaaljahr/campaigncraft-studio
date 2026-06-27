@@ -86,7 +86,7 @@
           <button class="builder-tab active" data-step="setup"><span>01</span>الإعداد</button>
           <button class="builder-tab" data-step="questions"><span>02</span>الأسئلة</button>
           <button class="builder-tab" data-step="publish"><span>03</span>النشر</button>
-          <button class="builder-tab" data-step="analysis"><span>04</span>التحليل</button>
+          <button class="builder-tab" data-step="analysis"><span>04</span>الإجابات والتحليل</button>
         </aside>
         <div class="builder-content">
           <section class="survey-step active" data-panel="setup">
@@ -111,16 +111,35 @@
 
           <section class="survey-step" data-panel="publish">
             <div class="publish-card">
-              <span class="card-kicker">PUBLIC SURVEY LINK</span><h3>رابط المشاركة</h3><p>الرابط يفتح نسخة نظيفة للمشارك، وتُحفظ الإجابات مباشرة في قاعدة بيانات Supabase المركزية من أي جهاز. يبقى تصدير JSON خيارًا احتياطيًا فقط.</p>
-              <div class="share-row"><input id="shareLink" readonly><button id="copyShare" type="button">نسخ الرابط</button><button id="openPreview" type="button">معاينة</button></div>
-              <div class="publish-actions"><button id="downloadSurvey" type="button">تصدير الاستبيان JSON</button><label class="import-label">استيراد إجابات<input id="importResponses" type="file" accept="application/json" multiple></label><button id="copyEmbed" type="button">نسخ كود التضمين</button></div>
+              <span class="card-kicker">PUBLIC SURVEY LINK</span>
+              <h3>مشاركة الاستبيان</h3>
+              <p>بعد النشر يصبح الرابط جاهزًا للمشاركة. المشاركون يفتحونه ويجيبون بدون تسجيل دخول، وتُحفظ الردود تلقائيًا في حساب صاحب الاستبيان.</p>
+              <input id="shareLink" type="hidden" readonly>
+              <div class="share-ready-card" id="shareReadyCard">
+                <span class="share-ready-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"></path><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"></path></svg></span>
+                <div><strong>رابط الاستبيان جاهز</strong><small>استخدمي «مشاركة الرابط» لإرساله مباشرة، أو «نسخ الرابط» عند الحاجة.</small></div>
+              </div>
+              <div class="share-action-grid">
+                <button id="shareSurvey" class="primary-share-btn" type="button">مشاركة الرابط</button>
+                <button id="copyShare" type="button">نسخ الرابط</button>
+                <button id="openPreview" type="button">فتح الاستبيان</button>
+              </div>
+              <div class="owner-answers-guide">
+                <span class="owner-guide-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9"></path><path d="M10 19V5"></path><path d="M16 19v-7"></path><path d="M22 19H2"></path></svg></span>
+                <div><strong>أين تظهر الإجابات؟</strong><p>ادخلي إلى تبويب <b>04 الإجابات والتحليل</b>. ستظهر الردود والإحصاءات هناك تلقائيًا، ولا يستطيع مشاهدتها إلا صاحب الاستبيان.</p></div>
+                <button id="viewResponses" type="button">عرض الإجابات</button>
+              </div>
+              <details class="advanced-publish-tools">
+                <summary>خيارات متقدمة</summary>
+                <div class="publish-actions"><button id="downloadSurvey" type="button">تصدير الاستبيان JSON</button><label class="import-label">استيراد إجابات<input id="importResponses" type="file" accept="application/json" multiple></label><button id="copyEmbed" type="button">نسخ كود التضمين</button></div>
+              </details>
             </div>
             <div class="quality-check"><h3>فحص جودة الاستبيان</h3><div id="qualityChecks"></div></div>
             <div class="step-actions"><button data-prev="questions" type="button">→ السابق</button><button data-next="analysis" class="primary-btn" type="button">عرض التحليل ←</button></div>
           </section>
 
           <section class="survey-step" data-panel="analysis">
-            <div id="analysisEmpty" class="analytics-empty">لا توجد إجابات بعد. افتحي المعاينة وأرسلي إجابة تجريبية أو استوردي ملفات إجابات.</div>
+            <div id="analysisEmpty" class="analytics-empty"><strong>إجابات الاستبيان ستظهر هنا</strong><span>شاركي الرابط مع المشاركين، ثم عودي إلى هذا التبويب. يتم جلب الردود تلقائيًا من قاعدة البيانات، ولا يراها إلا صاحب الاستبيان.</span></div>
             <div id="surveyAnalysis" class="hidden">
               <div class="analysis-summary-grid"><article><strong id="analysisResponses">0</strong><span>إجابة</span></article><article><strong id="completionRate">0%</strong><span>نسبة الإكمال</span></article><article><strong id="researchConfidence">منخفضة</strong><span>ثقة القراءة</span></article><article><strong id="topSegment">—</strong><span>الشريحة الأبرز</span></article></div>
               <div id="insightCards" class="insight-cards"></div>
@@ -138,9 +157,9 @@
   <div id="saveToast" class="save-toast" role="status"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="i18n-v3.js?v=20260627-3"></script>
+  <script src="i18n-v4.js?v=20260627-6"></script>
   <script src="auth.js"></script>
-  <script src="surveys-owner-v3.js?v=20260627-5"></script>
+  <script src="surveys-owner-v4.js?v=20260627-6"></script>
   <script src="mobile-menu.js"></script>
 </body>
 </html>
